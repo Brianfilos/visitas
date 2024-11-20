@@ -12,8 +12,13 @@ if uploaded_file_1 and uploaded_file_2:
     df = pd.read_excel(uploaded_file_1, sheet_name="datos")
     ciiu_df = pd.read_excel(uploaded_file_2)
 
+    # Asegurarse de que la columna "Códigos CIIU" no tenga nulos y sea tipo string
+    df['Códigos CIIU'] = df['Códigos CIIU'].fillna('').astype(str)
+
     # Separar número y descripción en "Códigos CIIU"
     df[['Código CIIU', 'Descripción CIIU']] = df['Códigos CIIU'].str.split(' - ', 1, expand=True)
+
+    # Convertir "Código CIIU" a numérico
     df['Código CIIU'] = pd.to_numeric(df['Código CIIU'], errors='coerce')
 
     # Convertir "CIIU 4" a numérico
