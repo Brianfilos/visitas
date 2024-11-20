@@ -12,34 +12,33 @@ if uploaded_file_1 and uploaded_file_2:
     df = pd.read_excel(uploaded_file_1, sheet_name="datos")
     ciiu_df = pd.read_excel(uploaded_file_2)
 
-    # Validar y procesar la columna "Códigos CIIU"
-    if 'Códigos CIIU' in df.columns:
-        df['Códigos CIIU'] = df['Códigos CIIU'].fillna('').astype(str)
-        valid_mask = df['Códigos CIIU'].str.contains(' - ')  # Solo filas con el formato válido
-        df_valid = df[valid_mask].copy()  # Filtrar solo las filas válidas
+    # Asegurar que la columna "Códigos CIIU" sea string
+    df['Códigos CIIU'] = df['Códigos CIIU'].fillna('').astype(str)
 
-        # Separar número y descripción en "Códigos CIIU"
-        df_valid[['Código CIIU', 'Descripción CIIU']] = df_valid['Códigos CIIU'].str.split(' - ', 1, expand=True)
+    # Crear columnas vacías para manejar casos donde no haya separador
+    df['Código CIIU'] = None
+    df['Descripción CIIU'] = None
 
-        # Convertir "Código CIIU" a numérico
-        df_valid['Código CIIU'] = pd.to_numeric(df_valid['Código CIIU'], errors='coerce')
+    # Dividir solo donde el separador esté presente
+    split_mask = df['Códigos CIIU'].str.contains(' - ')
+    df.loc[split_mask, ['Código CIIU', 'Descripción CIIU']] = df.loc[split_mask, 'Códigos CIIU'].str.split(' - ', 1, expand=True)
 
-        # Manejo de filas no conformes (opcional)
-        df_invalid = df[~valid_mask].copy()
-        if not df_invalid.empty:
-            st.warning(f"Se ignoraron {len(df_invalid)} filas con valores no válidos en 'Códigos CIIU'.")
-    else:
-        st.error("La columna 'Códigos CIIU' no está presente en los datos.")
-        st.stop()
+    # Convertir "Código CIIU" a numérico, dejando NaN en valores no válidos
+    df['Código CIIU'] = pd.to_numeric(df['Código CIIU'], errors='coerce')
+
+    # Informar al usuario si hubo filas sin el separador
+    invalid_rows = df[~split_mask]
+    if not invalid_rows.empty:
+        st.warning(f"Se encontraron {len(invalid_rows)} filas sin separador '-' en 'Códigos CIIU'. Estas filas fueron ignoradas en el procesamiento.")
 
     # Convertir "CIIU 4" a numérico
     ciiu_df['CIIU 4'] = pd.to_numeric(ciiu_df['CIIU 4'], errors='coerce')
 
     # Hacer el cruce por "Código CIIU" y "CIIU 4"
-    df_valid = df_valid.merge(ciiu_df[['CIIU 4', 'TIPO']], left_on='Código CIIU', right_on='CIIU 4', how='left')
+    df = df.merge(ciiu_df[['CIIU 4', 'TIPO']], left_on='Código CIIU', right_on='CIIU 4', how='left')
 
     # Gráfica: Cantidad de códigos por "TIPO"
-    tipo_counts = df_valid['TIPO'].value_counts().reset_index()
+    tipo_counts = df['TIPO'].value_counts().reset_index()
     tipo_counts.columns = ['TIPO', 'Cantidad']
 
     st.header("Gráfica de códigos por tipo")
@@ -52,10 +51,9 @@ if uploaded_file_1 and uploaded_file_2:
     st.dataframe(tipo_counts)
 
     # Top 10 códigos más recurrentes
-    top_ciiu = df_valid['Código CIIU'].value_counts().head(10).reset_index()
+    top_ciiu = df['Código CIIU'].value_counts().head(10).reset_index()
     top_ciiu.columns = ['Código CIIU', 'Cantidad']
-    top_ciiu = top_ciiu.merge(df_valid[['Código CIIU', 'Descripción CIIU']].drop_duplicates(), on='Código CIIU', how='left')
+    top_ciiu = top_ciiu.merge(df[['Código CIIU', 'Descripción CIIU']].drop_duplicates(), on='Código CIIU', how='left')
 
     st.header("Top 10 códigos más recurrentes")
     st.dataframe(top_ciiu)
-
