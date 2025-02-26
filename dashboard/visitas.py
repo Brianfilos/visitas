@@ -66,7 +66,7 @@ if uploaded_file:
                         return None, None
 
                 filtered_df["lat"], filtered_df["lng"] = zip(*filtered_df["Georeferencia"].apply(parse_coordinates))
-                map_data = filtered_df.dropna(subset=["lat", "lng"])[["lat", "lng", "barrio / vereda"]]
+                map_data = filtered_df.dropna(subset=["lat", "lng"])[["lat", "lng", "barrio"]]
 
                 if not map_data.empty:
                     # Renombrar columnas para st.map
